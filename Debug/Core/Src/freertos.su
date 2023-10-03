@@ -1,0 +1,15 @@
+../Core/Inc/bno055_stm32.h:19:6:bno055_assignI2C	16	static
+../Core/Inc/bno055_stm32.h:23:6:bno055_delay	16	static
+../Core/Inc/bno055_stm32.h:31:6:bno055_writeData	40	static
+../Core/Inc/bno055_stm32.h:95:6:bno055_readData	24	static
+../Core/Src/freertos.c:150:6:vApplicationGetIdleTaskMemory	24	static
+../Core/Src/freertos.c:164:6:MX_FREERTOS_Init	272	static
+../Core/Src/freertos.c:235:6:StartControlTask	16	static
+../Core/Src/freertos.c:251:6:startBarometerTask	16	static
+../Core/Src/freertos.c:275:6:starHeartbeatTask	16	static
+../Core/Src/freertos.c:299:6:startPwmTask	16	static
+../Core/Src/freertos.c:318:6:StartRCTask	16	static
+../Core/Src/freertos.c:334:6:StartImuTask	32	static
+../Core/Src/freertos.c:398:6:StartSendDataTask	16	static
+../Core/Src/freertos.c:414:6:StartBatteryTask	16	static
+../Core/Src/freertos.c:446:6:StartGPSTask	16	static

@@ -1,0 +1,2 @@
+../Core/Src/power_module.c:11:6:BatteryInit	8	static
+../Core/Src/power_module.c:15:7:getBatteryVoltage	16	static

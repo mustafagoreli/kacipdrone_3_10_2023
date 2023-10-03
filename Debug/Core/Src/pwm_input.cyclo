@@ -1,0 +1,6 @@
+../Core/Src/pwm_input.c:9:6:init_pwm_read	1
+../Core/Src/pwm_input.c:26:6:pwm_read_ch1	3
+../Core/Src/pwm_input.c:38:6:pwm_read_ch2	3
+../Core/Src/pwm_input.c:50:6:pwm_read_ch3	3
+../Core/Src/pwm_input.c:63:6:pwm_read_ch4	3
+../Core/Src/pwm_input.c:76:6:pwm_read_ch5	3

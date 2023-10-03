@@ -1,0 +1,2 @@
+../Core/Src/NMEA.c:27:5:decodeGGA	24
+../Core/Src/NMEA.c:202:5:decodeRMC	15
