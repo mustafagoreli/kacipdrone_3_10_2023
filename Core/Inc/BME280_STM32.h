@@ -67,6 +67,7 @@ typedef struct{
 	float humidity;
 	float altitude;
 	float initialAltitude;
+	float finalAltitude;
 }bme280_t;
 
 // Oversampling definitions

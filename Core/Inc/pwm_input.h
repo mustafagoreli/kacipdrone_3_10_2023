@@ -9,11 +9,13 @@
 #define INC_PWM_INPUT_H_
 
 #include "stm32f4xx_hal.h"
+#include "stdbool.h"
 
 typedef struct {
 	uint32_t ICValue;
 	uint32_t frequency;
 	float dutyCycle;
+	bool isRCConnected;
 } pwm_input_t;
 
 extern pwm_input_t pwm_ch1;
@@ -28,7 +30,9 @@ extern TIM_HandleTypeDef htim4;
 extern TIM_HandleTypeDef htim9;
 extern TIM_HandleTypeDef htim12;
 
-void init_pwm_read();
+void pwm_enabled();
+void pwm_disabled();
+
 void pwm_read_ch1();
 void pwm_read_ch2();
 void pwm_read_ch3();

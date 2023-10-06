@@ -11,4 +11,4 @@
 ../Core/Src/stm32f4xx_it.c:221:6:TIM4_IRQHandler	1
 ../Core/Src/stm32f4xx_it.c:234:6:USART2_IRQHandler	1
 ../Core/Src/stm32f4xx_it.c:246:6:USART3_IRQHandler	1
-../Core/Src/stm32f4xx_it.c:260:6:TIM8_BRK_TIM12_IRQHandler	1
+../Core/Src/stm32f4xx_it.c:259:6:TIM8_BRK_TIM12_IRQHandler	1

@@ -52,7 +52,9 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../Core/Inc/BME280_STM32.h ../Core/Inc/usart.h ../Core/Inc/main.h \
  ../Core/Inc/bno055_stm32.h ../Core/Inc/bno055.h \
  ../Core/Inc/power_module.h ../Core/Inc/pwm_input.h \
- ../Core/Inc/PIController.h ../Core/Inc/tim.h ../Core/Inc/NMEA.h
+ ../Core/Inc/PIController.h ../Core/Inc/tim.h ../Core/Inc/NMEA.h \
+ ../Core/Inc/esc.h ../Core/Inc/tim.h ../Core/Inc/power_module.h \
+ ../Core/Inc/uartRingBuffer.h
 ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h:
 ../Core/Inc/FreeRTOSConfig.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h:
@@ -114,3 +116,7 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../Core/Inc/PIController.h:
 ../Core/Inc/tim.h:
 ../Core/Inc/NMEA.h:
+../Core/Inc/esc.h:
+../Core/Inc/tim.h:
+../Core/Inc/power_module.h:
+../Core/Inc/uartRingBuffer.h:

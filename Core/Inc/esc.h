@@ -9,6 +9,7 @@
 #define INC_ESC_H_
 
 #include "stm32f4xx_hal.h"
+#include "tim.h"
 #include "power_module.h"
 
 extern TIM_HandleTypeDef htim1;
@@ -17,8 +18,8 @@ extern TIM_HandleTypeDef htim1;
 //#define BATTERY_REMAINING_VOLTAGE 1	//parametre olarak veya global değişkenle veririz
 #define BATTERY_START_VOLTAGE 16.8
 #define BATTERY_COMPENSATION_COEFFICIENT 1
-#define MAX_PWM_OUTPUT 2000
-#define MIN_PWM_OUTPUT 1000
+#define MAX_PWM_OUTPUT 1900
+#define MIN_PWM_OUTPUT 1100
 
 
 void init_esc();

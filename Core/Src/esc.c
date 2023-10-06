@@ -16,7 +16,6 @@
 //config(pwm başlat) ve kalibrasyon(mainde whileın öncesinde çağır)
 
 void init_esc() {
-
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
@@ -54,6 +53,7 @@ void set_pwm(float roll_pid, float pitch_pid, float yaw_pid, uint16_t throttle,
 	pulse_length_esc3 = throttle - roll_pid + pitch_pid - yaw_pid;
 	pulse_length_esc4 = throttle + roll_pid + pitch_pid + yaw_pid;
 
+	/*
 	pulse_length_esc1 += pulse_length_esc1
 			* ((BATTERY_START_VOLTAGE - battery.voltage)
 					/ (float) BATTERY_COMPENSATION_COEFFICIENT);
@@ -66,7 +66,7 @@ void set_pwm(float roll_pid, float pitch_pid, float yaw_pid, uint16_t throttle,
 	pulse_length_esc4 += pulse_length_esc4
 			* ((BATTERY_START_VOLTAGE - battery.voltage)
 					/ (float) BATTERY_COMPENSATION_COEFFICIENT);
-
+*/
 	//************************************ESC MAX OUTPUT LIMITING*********************************//
 	if (pulse_length_esc1 > MAX_PWM_OUTPUT)
 		pulse_length_esc1 = MAX_PWM_OUTPUT;

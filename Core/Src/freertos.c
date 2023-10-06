@@ -38,6 +38,8 @@
 #include "PIController.h"
 #include "tim.h"
 #include "NMEA.h"
+#include "esc.h"
+#include "uartRingBuffer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,31 +52,36 @@
 
 //TUM
 //BUNLARDAN BAZILARINI MUHTEMELEN YORUMA CEKECEGIZ, AYRICA HER BIRINE IDEAL DEGER ATANACAK
-#define SAMPLE_TIME_BAROMETER 500
-#define SAMPLE_TIME_POWER_MODULE 2000
-#define SAMPLE_TIME_IMU 500//100
-#define SAMPLE_TIME_GPS 500
-#define SAMPLE_TIME_TX 500
-#define SAMPLE_TIME_CONTROL 500//100
-#define SAMPLE_TIME_ESC 500//100
-#define SAMPLE_TIME_PWM_INPUT 500
+#define SAMPLE_TIME_BAROMETER 1000
+#define SAMPLE_TIME_POWER_MODULE 1000
+
+#define SAMPLE_TIME_GPS 1000
+
+#define SAMPLE_TIME_TX 200
+#define SAMPLE_TIME_IMU 100//100
+#define SAMPLE_TIME_ESC 100//100
+//#define SAMPLE_TIME_PWM_INPUT 500
 
 #define FAILSAFE_VOLTAGE 15.2	//DEGISECEK
 #define DEAD_VOLTAGE 14.2
 
-#define PITCH_ROLL_KP 0	//DEGISECEK, PID PARAMETRELERI
-#define PITCH_ROLL_KI 0
-#define PITCH_ROLL_KD 0
+#define PITCH_ROLL_KP 1	//DEGISECEK, PID PARAMETRELERI
+#define PITCH_ROLL_KI 1
+#define PITCH_ROLL_KD 1
 
 #define PWM_POS_PITCH 1700//jetsondan gelen verilere göre pozitif veya negatif pitch/roll vereceğiz
-#define PWM_NEG_PITCH 1200//bunlar da onların sabit pwmleri, sabit olmazsa değiştiririz
+#define PWM_NEG_PITCH 1300//bunlar da onların sabit pwmleri, sabit olmazsa değiştiririz
 
 #define PWM_POS_ROLL 1700
-#define PWM_NEG_ROLL 1200
+#define PWM_NEG_ROLL 1300
 
 #define MANUAL_MODE 0//otonom manual modda olduğunu gösterecek
 #define AUTONOMOUS_MODE 1
 
+#define TRUE '1'
+#define FALSE '0'
+#define START 's'
+#define FINISH 'f'
 
 /* USER CODE END PD */
 
@@ -91,16 +98,18 @@ PIDController pitch_pid_t;
 PIDController roll_pid_t;
 //PIDController height_pid_t;
 uint16_t deltaT = 0;
+bno055_vector_t imu;
+// ************************   PID finish   *********************************
+
+// ************************   ESC start   *********************************
 uint16_t PID_ROLL = 0, PID_PITCH = 0, PID_YAW = 0, THROTTLE = 0;
 uint8_t drive_mode = MANUAL_MODE; //otonom olacağı zaman 1de başlat
 //otonom manual modda olduğunu gösterecek
-
-// ************************   PID finish   *********************************
+// ************************   ESC finish   *********************************
 
 // ************************   UART start   *********************************
 extern uartBuffer_t uartBuffer;
-extern bool dataReceived;
-char comma[] = ",";
+char ptr[100];
 // ************************   UART finish   *********************************
 
 // ************************   Battery start   *********************************
@@ -117,16 +126,14 @@ char RMC[100];
 GPSSTRUCT gpsData;
 int flagGGA = 0, flagRMC = 0;
 int VCCTimeout = 5000;
+char GGA[] = "GGA";
 // ************************   GPS finish   *********************************
 
 /* USER CODE END Variables */
-osThreadId controlTaskHandle;
-osThreadId barometerTaskHandle;
-osThreadId heartbeatTaskHandle;
-osThreadId pwmTaskHandle;
-osThreadId rcTaskHandle;
-osThreadId imuTaskHandle;
 osThreadId sendDataTaskHandle;
+osThreadId barometerTaskHandle;
+osThreadId escTaskHandle;
+osThreadId imuTaskHandle;
 osThreadId batteryTaskHandle;
 osThreadId gpsTaskHandle;
 
@@ -135,13 +142,10 @@ osThreadId gpsTaskHandle;
 
 /* USER CODE END FunctionPrototypes */
 
-void StartControlTask(void const *argument);
-void startBarometerTask(void const *argument);
-void starHeartbeatTask(void const *argument);
-void startPwmTask(void const *argument);
-void StartRCTask(void const *argument);
-void StartImuTask(void const *argument);
 void StartSendDataTask(void const *argument);
+void startBarometerTask(void const *argument);
+void startEscTask(void const *argument);
+void StartImuTask(void const *argument);
 void StartBatteryTask(void const *argument);
 void StartGPSTask(void const *argument);
 
@@ -191,33 +195,21 @@ void MX_FREERTOS_Init(void) {
 	/* USER CODE END RTOS_QUEUES */
 
 	/* Create the thread(s) */
-	/* definition and creation of controlTask */
-	osThreadDef(controlTask, StartControlTask, osPriorityNormal, 0, 128);
-	controlTaskHandle = osThreadCreate(osThread(controlTask), NULL);
+	/* definition and creation of sendDataTask */
+	osThreadDef(sendDataTask, StartSendDataTask, osPriorityNormal, 0, 128);
+	sendDataTaskHandle = osThreadCreate(osThread(sendDataTask), NULL);
 
 	/* definition and creation of barometerTask */
 	osThreadDef(barometerTask, startBarometerTask, osPriorityIdle, 0, 128);
 	barometerTaskHandle = osThreadCreate(osThread(barometerTask), NULL);
 
-	/* definition and creation of heartbeatTask */
-	osThreadDef(heartbeatTask, starHeartbeatTask, osPriorityIdle, 0, 128);
-	heartbeatTaskHandle = osThreadCreate(osThread(heartbeatTask), NULL);
-
-	/* definition and creation of pwmTask */
-	osThreadDef(pwmTask, startPwmTask, osPriorityIdle, 0, 128);
-	pwmTaskHandle = osThreadCreate(osThread(pwmTask), NULL);
-
-	/* definition and creation of rcTask */
-	osThreadDef(rcTask, StartRCTask, osPriorityIdle, 0, 128);
-	rcTaskHandle = osThreadCreate(osThread(rcTask), NULL);
+	/* definition and creation of escTask */
+	osThreadDef(escTask, startEscTask, osPriorityIdle, 0, 128);
+	escTaskHandle = osThreadCreate(osThread(escTask), NULL);
 
 	/* definition and creation of imuTask */
 	osThreadDef(imuTask, StartImuTask, osPriorityIdle, 0, 128);
 	imuTaskHandle = osThreadCreate(osThread(imuTask), NULL);
-
-	/* definition and creation of sendDataTask */
-	osThreadDef(sendDataTask, StartSendDataTask, osPriorityIdle, 0, 128);
-	sendDataTaskHandle = osThreadCreate(osThread(sendDataTask), NULL);
 
 	/* definition and creation of batteryTask */
 	osThreadDef(batteryTask, StartBatteryTask, osPriorityIdle, 0, 128);
@@ -233,20 +225,97 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_StartControlTask */
+/* USER CODE BEGIN Header_StartSendDataTask */
 /**
- * @brief  Function implementing the controlTask thread.
- * @param  argument: Not used
+ * @brief Function implementing the sendDataTask thread.
+ * @param argument: Not used
  * @retval None
  */
-/* USER CODE END Header_StartControlTask */
-void StartControlTask(void const *argument) {
-	/* USER CODE BEGIN StartControlTask */
+/* USER CODE END Header_StartSendDataTask */
+void StartSendDataTask(void const *argument) {
+	/* USER CODE BEGIN StartSendDataTask */
+
 	/* Infinite loop */
 	for (;;) {
-		osDelay(SAMPLE_TIME_CONTROL);
+		//  Datalar S + IMU (pitch roll yaw) + Barometre + Sürüş Mode + Power Status + F
+		/*
+		 printf(data);
+		 printf(ptr);
+		 printf(newLine);
+		 */
+		printf("s");
+		gcvt(imu.y, 8, ptr);
+		printf(ptr);
+		printf(",");
+
+		gcvt(imu.z, 8, ptr);
+		printf(ptr);
+		printf(",");
+
+		gcvt(imu.x, 8, ptr);
+		printf(ptr);
+		printf(",");
+
+		gcvt(bme280.altitude, 8, ptr);
+		printf(ptr);
+		printf(",");
+
+		printf("%d", drive_mode);
+		printf(",");
+
+		gcvt(battery.voltage, 8, ptr);
+		printf(ptr);
+		printf("f\n");
+		/*
+		 gcvt(bme280.altitude, 8, ptr);
+		 printf("BAROMETRE = ");
+		 printf(ptr);
+		 printf("\n");
+		 gcvt(imu.x, 8, ptr);
+		 printf("YAW = ");
+		 printf(ptr);
+		 printf("\n");
+		 gcvt(imu.y, 8, ptr);
+		 printf("PITCH = ");
+		 printf(ptr);
+		 printf("\n");
+		 gcvt(imu.z, 8, ptr);
+		 printf("ROLL = ");
+		 printf(ptr);
+		 printf("\n");
+		 gcvt(gpsData.ggastruct.lcation.latitude, 8, ptr);
+		 printf("Lat = ");
+		 printf(ptr);
+		 printf("\n");
+		 gcvt(gpsData.ggastruct.lcation.longitude, 8, ptr);
+		 printf("Long = ");
+		 printf(ptr);
+		 printf("\n");
+		 */
+		/*
+		 gcvt(pwm_ch1.dutyCycle, 8, ptr);
+		 printf("Ch1 dutyCycle = ");
+		 printf(ptr);
+		 printf("\n");
+		 gcvt(pwm_ch2.dutyCycle, 8, ptr);
+		 printf("Ch2 dutyCycle = ");
+		 printf(ptr);
+		 printf("\n");
+		 gcvt(pwm_ch3.dutyCycle, 8, ptr);
+		 printf("Ch3 dutyCycle = ");
+		 printf(ptr);
+		 printf("\n");
+		 gcvt(pwm_ch4.dutyCycle, 8, ptr);
+		 printf("Ch4 dutyCycle = ");
+		 printf(ptr);
+		 printf("\n");
+		 gcvt(pwm_ch5.dutyCycle, 8, ptr);
+		 printf("Ch5 dutyCycle = ");
+		 printf(ptr);
+		 printf("\n");*/
+		osDelay(SAMPLE_TIME_TX);
 	}
-	/* USER CODE END StartControlTask */
+	/* USER CODE END StartSendDataTask */
 }
 
 /* USER CODE BEGIN Header_startBarometerTask */
@@ -258,78 +327,48 @@ void StartControlTask(void const *argument) {
 /* USER CODE END Header_startBarometerTask */
 void startBarometerTask(void const *argument) {
 	/* USER CODE BEGIN startBarometerTask */
+	BME280_Config(OSRS_2, OSRS_16, OSRS_1, MODE_NORMAL, T_SB_0p5, IIR_16);
+	BME280_Measure();
+	bme280.initialAltitude = 44330
+			* (1
+					- (pow(((float) bme280.pressure / (float) atmPress),
+							0.19029495718)));
 	/* Infinite loop */
 	for (;;) {
-		/*
-		 BME280_Measure();
-		 Altitude = 44330
-		 * (1
-		 - (pow(((float) Pressure / (float) atmPress),
-		 0.19029495718)));
-		 Altitude = round(Altitude - initialAltitude);
-		 osDelay(SAMPLE_TIME_BAROMETER);
-		 */
+		BME280_Measure();
+		bme280.altitude = 44330
+				* (1
+						- (pow(((float) bme280.pressure / (float) atmPress),
+								0.19029495718)));
+		bme280.finalAltitude = bme280.altitude - bme280.initialAltitude;
+		osDelay(SAMPLE_TIME_BAROMETER);
 	}
 	/* USER CODE END startBarometerTask */
 }
 
-/* USER CODE BEGIN Header_starHeartbeatTask */
+/* USER CODE BEGIN Header_startEscTask */
 /**
- * @brief Function implementing the heartbeatTask thread.
+ * @brief Function implementing the escTask thread.
  * @param argument: Not used
  * @retval None
  */
-/* USER CODE END Header_starHeartbeatTask */
-void starHeartbeatTask(void const *argument) {
-	/* USER CODE BEGIN starHeartbeatTask */
-	/* Infinite loop */
-	for (;;) {
-		/*
-		 gcvt(newAltitude1, 6, ptr);
-		 strcat(ptr,comma);
-		 gcvt(newAltitude2, 6, ptr + 8);
-		 printf("Hello World = ");
-		 printf(ptr);
-		 printf("\n");
-		 */
-		osDelay(1000);
-	}
-	/* USER CODE END starHeartbeatTask */
-}
-
-/* USER CODE BEGIN Header_startPwmTask */
-/**
- * @brief Function implementing the pwmTask thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_startPwmTask */
-void startPwmTask(void const *argument) {
-	/* USER CODE BEGIN startPwmTask */
+/* USER CODE END Header_startEscTask */
+void startEscTask(void const *argument) {
+	/* USER CODE BEGIN startEscTask */
+	//init_esc();
 	/* Infinite loop */
 	for (;;) {
 
-		//set_pwm(PID_ROLL, PID_PITCH, PID_YAW, THROTTLE, battery);
+		if (AUTONOMOUS_MODE == drive_mode) {
+			set_pwm(PID_ROLL, PID_PITCH, PID_YAW, THROTTLE, battery);
+		} else {
+			set_pwm(PID_ROLL, PID_PITCH, PID_YAW, pwm_ch3.dutyCycle, battery); //ch3 throttle
+		}
 
 		osDelay(SAMPLE_TIME_ESC);
-	}
-	/* USER CODE END startPwmTask */
-}
 
-/* USER CODE BEGIN Header_StartRCTask */
-/**
- * @brief Function implementing the rcTask thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartRCTask */
-void StartRCTask(void const *argument) {
-	/* USER CODE BEGIN StartRCTask */
-	/* Infinite loop */
-	for (;;) {
-		osDelay(SAMPLE_TIME_PWM_INPUT);
 	}
-	/* USER CODE END StartRCTask */
+	/* USER CODE END startEscTask */
 }
 
 /* USER CODE BEGIN Header_StartImuTask */
@@ -341,7 +380,6 @@ void StartRCTask(void const *argument) {
 /* USER CODE END Header_StartImuTask */
 void StartImuTask(void const *argument) {
 	/* USER CODE BEGIN StartImuTask */
-
 	bno055_assignI2C(&hi2c3);
 	bno055_setup();
 	bno055_setOperationModeNDOF();
@@ -359,57 +397,46 @@ void StartImuTask(void const *argument) {
 	roll_pid_t.Kd = PITCH_ROLL_KD;
 
 	for (;;) {
-
-		bno055_vector_t imu = bno055_getVectorEuler();
+		imu = bno055_getVectorEuler();
 
 		roll_pid_t.T = deltaT;
 		pitch_pid_t.T = deltaT;
 
 		__HAL_TIM_SET_COUNTER(&htim5, 0);
+		if (AUTONOMOUS_MODE == drive_mode) {
 
+			//jetsondan gelen veriye göre wanted setpoint değerini burada güncelleyeceğiz
+			//imuda x yaw y pitch z roll
+			if (uartBuffer.movementData.pitchPositive == TRUE) {
+				PID_PITCH = PIDController_Update(&pitch_pid_t, PWM_POS_PITCH,
+						imu.y);	//pitch +180 -180 aralığında
 
-		if (drive_mode == AUTONOMOUS_MODE) {
+			} else if (uartBuffer.movementData.pitchNegative == TRUE) {
+				PID_PITCH = PIDController_Update(&pitch_pid_t, PWM_NEG_PITCH,
+						imu.y);	//pitch +180 -180 aralığında
 
-			/*
-			 * jetsondan gelen veriye göre wanted setpoint değerini burada güncelleyeceğiz
-			 *
-			PID_PITCH = PIDController_Update(&pitch_pid_t, wanted_setpoint,
-					imu.x);	//pitch +180 -180 aralığında
-			PID_ROLL = PIDController_Update(&roll_pid_t, wanted_setpoint,
-					imu.y);//roll +90 -90 aralığında
-		*/}
-
-
-		else
-		{
-			PID_PITCH = PIDController_Update(&pitch_pid_t, pwm_ch2.dutyCycle,
-					imu.x);	//pitch +180 -180 aralığında
-			PID_ROLL = PIDController_Update(&roll_pid_t, pwm_ch3.dutyCycle,
-					imu.y);	//roll +90 -90 aralığında
+			}
+			if (uartBuffer.movementData.rollPositive == TRUE) {
+				PID_ROLL = PIDController_Update(&roll_pid_t, PWM_POS_ROLL,
+						imu.z);	//roll +90 -90 aralığında
+			} else if (uartBuffer.movementData.rollNegative == TRUE) {
+				PID_ROLL = PIDController_Update(&roll_pid_t, PWM_NEG_ROLL,
+						imu.z);	//roll +90 -90 aralığında
+			}
 		}
 
-
+		else {	//kumanda bölümü 		//ch5roll sol yan	//ch2 pitch
+			PID_PITCH = PIDController_Update(&pitch_pid_t, pwm_ch2.dutyCycle,
+					imu.y);	//pitch +180 -180 aralığında
+			PID_ROLL = PIDController_Update(&roll_pid_t, pwm_ch5.dutyCycle,
+					imu.z);	//roll +90 -90 aralığında
+		}
 		deltaT = __HAL_TIM_GET_COUNTER(&htim5);
+		deltaT = deltaT / 2;	//şu anda milisaniye olarak ölçüyoruz
 		osDelay(SAMPLE_TIME_IMU);
 
 	}
 	/* USER CODE END StartImuTask */
-}
-
-/* USER CODE BEGIN Header_StartSendDataTask */
-/**
- * @brief Function implementing the sendDataTask thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartSendDataTask */
-void StartSendDataTask(void const *argument) {
-	/* USER CODE BEGIN StartSendDataTask */
-	/* Infinite loop */
-	for (;;) {
-		osDelay(SAMPLE_TIME_TX);
-	}
-	/* USER CODE END StartSendDataTask */
 }
 
 /* USER CODE BEGIN Header_StartBatteryTask */
@@ -421,24 +448,23 @@ void StartSendDataTask(void const *argument) {
 /* USER CODE END Header_StartBatteryTask */
 void StartBatteryTask(void const *argument) {
 	/* USER CODE BEGIN StartBatteryTask */
-	BatteryInit();
-
+	//BatteryInit();
 	/* Infinite loop */
 	for (;;) {
-		battery.voltage = getBatteryVoltage();
+		/*
+		 battery.voltage = getBatteryVoltage();
 
-		if (battery.voltage < FAILSAFE_VOLTAGE
-				&& battery.voltage >= DEAD_VOLTAGE) {
-			battery.isBatteryLow = true;
+		 if (battery.voltage < FAILSAFE_VOLTAGE
+		 && battery.voltage >= DEAD_VOLTAGE) {
+		 battery.isBatteryLow = true;
 
-		} else if (battery.voltage < DEAD_VOLTAGE) {
-			battery.isBatteryDead = true;
-			battery.isBatteryLow = false;
-		} else {
-			battery.isBatteryDead = false;
-			battery.isBatteryLow = false;
-		}
-
+		 } else if (battery.voltage < DEAD_VOLTAGE) {
+		 battery.isBatteryDead = true;
+		 battery.isBatteryLow = false;
+		 } else {
+		 battery.isBatteryDead = false;
+		 battery.isBatteryLow = false;
+		 }*/
 		osDelay(SAMPLE_TIME_POWER_MODULE);
 	}
 	/* USER CODE END StartBatteryTask */
@@ -455,7 +481,7 @@ void StartGPSTask(void const *argument) {
 	/* USER CODE BEGIN StartGPSTask */
 	/* Infinite loop */
 	for (;;) {
-		if (Wait_for("GGA") == 1) {
+		if (Wait_for(GGA) == 1) {
 
 			VCCTimeout = 5000; // Reset the VCC Timeout indicating the GGA is being received
 
@@ -494,6 +520,7 @@ void StartGPSTask(void const *argument) {
 			// You are here means the VCC is less, or maybe there is some connection issue
 			// Check the VCC, also you can try connecting to the external 5V
 		}
+
 		osDelay(SAMPLE_TIME_GPS);
 	}
 	/* USER CODE END StartGPSTask */

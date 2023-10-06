@@ -1,6 +1,6 @@
 ../Core/Src/esc.c:18:6:init_esc	1
-../Core/Src/esc.c:26:6:drive_motor_1	1
-../Core/Src/esc.c:31:6:drive_motor_2	1
-../Core/Src/esc.c:36:6:drive_motor_3	1
-../Core/Src/esc.c:41:6:drive_motor_4	1
-../Core/Src/esc.c:46:6:set_pwm	9
+../Core/Src/esc.c:25:6:drive_motor_1	1
+../Core/Src/esc.c:30:6:drive_motor_2	1
+../Core/Src/esc.c:35:6:drive_motor_3	1
+../Core/Src/esc.c:40:6:drive_motor_4	1
+../Core/Src/esc.c:45:6:set_pwm	9

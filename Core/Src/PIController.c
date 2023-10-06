@@ -25,7 +25,7 @@ float PIDController_Update(PIDController *pid, float setpoint, float measurement
 	/*
 	* Error signal
 	*/
-    float error = setpoint - measurement;
+    float error = setpoint - measurement;//setpoint 1k-2k arası, measurement min-180max360
 
 
 	/*
