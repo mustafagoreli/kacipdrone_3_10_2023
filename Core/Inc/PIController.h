@@ -21,9 +21,10 @@ typedef struct {
 	float limMaxInt;
 
 	/* Sample time (in seconds) */
-	float T;
+	int T;
 
 	/* Controller "memory" */
+	float proportional;
 	float integrator;
 	float prevError;			/* Required for integrator */
 	float differentiator;

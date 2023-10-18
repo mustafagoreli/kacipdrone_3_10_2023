@@ -53,30 +53,40 @@
 //TUM
 //BUNLARDAN BAZILARINI MUHTEMELEN YORUMA CEKECEGIZ, AYRICA HER BIRINE IDEAL DEGER ATANACAK
 #define SAMPLE_TIME_BAROMETER 1000
-#define SAMPLE_TIME_POWER_MODULE 1000
+#define SAMPLE_TIME_POWER_MODULE 2000
 
-#define SAMPLE_TIME_GPS 1000
+#define SAMPLE_TIME_GPS 100
 
 #define SAMPLE_TIME_TX 200
-#define SAMPLE_TIME_IMU 100//100
-#define SAMPLE_TIME_ESC 100//100
-//#define SAMPLE_TIME_PWM_INPUT 500
+#define SAMPLE_TIME_IMU 20//20ye veya 2ye çekicez
+#define SAMPLE_TIME_ESC 500//100		//bu da imu da daha hızlı olmalı, tx*5 olabilir
+
+#define SAMPLE_TIME_FAILSAFE 100
+#define FAILSAFE_ACTIVATE_TIME 1500//6000olacak giriyor
 
 #define FAILSAFE_VOLTAGE 15.2	//DEGISECEK
 #define DEAD_VOLTAGE 14.2
 
-#define PITCH_ROLL_KP 1	//DEGISECEK, PID PARAMETRELERI
-#define PITCH_ROLL_KI 1
-#define PITCH_ROLL_KD 1
+#define PITCH_ROLL_KP 0.05	//DEGISECEK, PID PARAMETRELERI
+#define PITCH_ROLL_KI 0.00005
+#define PITCH_ROLL_KD 50
 
 #define PWM_POS_PITCH 1700//jetsondan gelen verilere göre pozitif veya negatif pitch/roll vereceğiz
+#define PWM_NOTR_PITCH 1500	//take off landing ve stabil olması için
 #define PWM_NEG_PITCH 1300//bunlar da onların sabit pwmleri, sabit olmazsa değiştiririz
 
 #define PWM_POS_ROLL 1700
+#define PWM_NOTR_ROLL 1500
 #define PWM_NEG_ROLL 1300
+
+#define PWM_CRUISE 1800
 
 #define MANUAL_MODE 0//otonom manual modda olduğunu gösterecek
 #define AUTONOMOUS_MODE 1
+#define SAFETY_MODE 2
+
+#define TAKEOFF_STEP_TIME 1000
+#define LAND_STEP_TIME 1500
 
 #define TRUE '1'
 #define FALSE '0'
@@ -97,13 +107,14 @@
 PIDController pitch_pid_t;
 PIDController roll_pid_t;
 //PIDController height_pid_t;
-uint16_t deltaT = 0;
+int deltaT = 0;
 bno055_vector_t imu;
 // ************************   PID finish   *********************************
 
 // ************************   ESC start   *********************************
-uint16_t PID_ROLL = 0, PID_PITCH = 0, PID_YAW = 0, THROTTLE = 0;
+int PID_ROLL = 0, PID_PITCH = 0, PID_YAW = 0, THROTTLE = 0;
 uint8_t drive_mode = MANUAL_MODE; //otonom olacağı zaman 1de başlat
+esc_t esc;
 //otonom manual modda olduğunu gösterecek
 // ************************   ESC finish   *********************************
 
@@ -128,6 +139,9 @@ int flagGGA = 0, flagRMC = 0;
 int VCCTimeout = 5000;
 char GGA[] = "GGA";
 // ************************   GPS finish   *********************************
+// ************************   FAILSAFE start   *********************************
+extern failsafe_t failsafe;
+// ************************   FAILSAFE finish   *********************************
 
 /* USER CODE END Variables */
 osThreadId sendDataTaskHandle;
@@ -243,46 +257,39 @@ void StartSendDataTask(void const *argument) {
 		 printf(ptr);
 		 printf(newLine);
 		 */
-		printf("s");
-		gcvt(imu.y, 8, ptr);
-		printf(ptr);
-		printf(",");
-
-		gcvt(imu.z, 8, ptr);
-		printf(ptr);
-		printf(",");
-
-		gcvt(imu.x, 8, ptr);
-		printf(ptr);
-		printf(",");
-
-		gcvt(bme280.altitude, 8, ptr);
-		printf(ptr);
-		printf(",");
-
-		printf("%d", drive_mode);
-		printf(",");
-
-		gcvt(battery.voltage, 8, ptr);
-		printf(ptr);
-		printf("f\n");
+		//jetsona iletilen veriler
 		/*
+		 printf("s");
+		 gcvt(imu.y, 8, ptr);
+		 printf(ptr);
+		 printf(",");
+
+		 gcvt(imu.z, 8, ptr);
+		 printf(ptr);
+		 printf(",");
+
+		 gcvt(imu.x, 8, ptr);
+		 printf(ptr);
+		 printf(",");
+
+		 gcvt(bme280.altitude, 8, ptr);
+		 printf(ptr);
+		 printf(",");
+
+		 printf("%d", drive_mode);
+		 printf(",");
+
+		 gcvt(battery.voltage, 8, ptr);
+		 printf(ptr);
+		 printf("f\n");
+
 		 gcvt(bme280.altitude, 8, ptr);
 		 printf("BAROMETRE = ");
 		 printf(ptr);
 		 printf("\n");
-		 gcvt(imu.x, 8, ptr);
-		 printf("YAW = ");
-		 printf(ptr);
-		 printf("\n");
-		 gcvt(imu.y, 8, ptr);
-		 printf("PITCH = ");
-		 printf(ptr);
-		 printf("\n");
-		 gcvt(imu.z, 8, ptr);
-		 printf("ROLL = ");
-		 printf(ptr);
-		 printf("\n");
+
+
+
 		 gcvt(gpsData.ggastruct.lcation.latitude, 8, ptr);
 		 printf("Lat = ");
 		 printf(ptr);
@@ -291,28 +298,58 @@ void StartSendDataTask(void const *argument) {
 		 printf("Long = ");
 		 printf(ptr);
 		 printf("\n");
+		 //motorlara iletilen pwmler
+
+		 *//*
+		 gcvt(battery.voltage, 8, ptr);
+		 printf("Battery Voltage = ");
+		 printf(ptr);
+		 printf("\n");
 		 */
 		/*
-		 gcvt(pwm_ch1.dutyCycle, 8, ptr);
-		 printf("Ch1 dutyCycle = ");
+		printf("\n\n");
+		gcvt(imu.x, 8, ptr);
+		printf("YAW = ");
+		printf(ptr);
+		printf("\n");
+		gcvt(imu.y, 8, ptr);
+		printf("PITCH = ");
+		printf(ptr);
+		printf("\n");
+		gcvt(imu.z, 8, ptr);
+		printf("ROLL = ");
+		printf(ptr);
+		printf("\n");
+*/
+		/*
+		 printf("\n\n");
+		 gcvt(rc_pitch.dutyCycle, 8, ptr);
+		 printf("pitch dutyCycle = ");
 		 printf(ptr);
 		 printf("\n");
-		 gcvt(pwm_ch2.dutyCycle, 8, ptr);
-		 printf("Ch2 dutyCycle = ");
+		 gcvt(rc_roll.dutyCycle, 8, ptr);
+		 printf("roll dutyCycle = ");
 		 printf(ptr);
 		 printf("\n");
-		 gcvt(pwm_ch3.dutyCycle, 8, ptr);
-		 printf("Ch3 dutyCycle = ");
+		 gcvt(rc_yaw.dutyCycle, 8, ptr);
+		 printf("yaw dutyCycle = ");
 		 printf(ptr);
 		 printf("\n");
-		 gcvt(pwm_ch4.dutyCycle, 8, ptr);
-		 printf("Ch4 dutyCycle = ");
+		 gcvt(rc_throttle.dutyCycle, 8, ptr);
+		 printf("throttle dutyCycle = ");
 		 printf(ptr);
 		 printf("\n");
-		 gcvt(pwm_ch5.dutyCycle, 8, ptr);
-		 printf("Ch5 dutyCycle = ");
+
+		 gcvt(rc_mode.dutyCycle, 8, ptr);
+		 printf("mode dutyCycle = ");
 		 printf(ptr);
-		 printf("\n");*/
+
+
+		 printf("\n\n");
+		 if(failsafe.flag == true){
+		 printf("FAILSAFE IS ACTIVATED!\n");
+		 }*/
+
 		osDelay(SAMPLE_TIME_TX);
 	}
 	/* USER CODE END StartSendDataTask */
@@ -358,11 +395,54 @@ void startEscTask(void const *argument) {
 	//init_esc();
 	/* Infinite loop */
 	for (;;) {
-
 		if (AUTONOMOUS_MODE == drive_mode) {
-			set_pwm(PID_ROLL, PID_PITCH, PID_YAW, THROTTLE, battery);
-		} else {
-			set_pwm(PID_ROLL, PID_PITCH, PID_YAW, pwm_ch3.dutyCycle, battery); //ch3 throttle
+
+			if (uartBuffer.movementData.takeoff == TRUE) { //OTONOM TAKE OFF
+				osDelay(TAKEOFF_STEP_TIME);
+				osDelay(TAKEOFF_STEP_TIME);
+
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1300, battery, esc);
+				osDelay(TAKEOFF_STEP_TIME);
+
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1500, battery, esc);
+				osDelay(TAKEOFF_STEP_TIME);
+
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1700, battery, esc);
+				osDelay(TAKEOFF_STEP_TIME);
+
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1800, battery, esc);
+				osDelay(TAKEOFF_STEP_TIME);
+
+			} else if (uartBuffer.movementData.landing == TRUE) { //OTONOM LANDING
+
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1300, battery, esc);
+				osDelay(TAKEOFF_STEP_TIME);
+
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1500, battery, esc);
+				osDelay(TAKEOFF_STEP_TIME);
+
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1700, battery, esc);
+				osDelay(TAKEOFF_STEP_TIME);
+
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1800, battery, esc);
+				osDelay(TAKEOFF_STEP_TIME);
+
+			} else {
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, PWM_CRUISE, battery, esc);
+			}
+		}
+
+		else if (SAFETY_MODE == drive_mode) { //safe modda tüm motorları durdur
+			drive_motor_1(MIN_PWM_OUTPUT);
+			drive_motor_2(MIN_PWM_OUTPUT);
+			drive_motor_3(MIN_PWM_OUTPUT);
+			drive_motor_4(MIN_PWM_OUTPUT);
+
+		}
+
+		else { 	//aksi halde manuel sürüş
+			set_pwm(PID_ROLL, PID_PITCH, PID_YAW, rc_throttle.dutyCycle,
+					battery, esc); //ch3 throttle
 		}
 
 		osDelay(SAMPLE_TIME_ESC);
@@ -387,10 +467,22 @@ void StartImuTask(void const *argument) {
 	PIDController_Init(&pitch_pid_t); //pid sıfırlama
 	PIDController_Init(&roll_pid_t);
 
-	//pitch ve roll pid parametreleri x konfigurasyonunda aynı olabilir
+//pitch ve roll pid parametreleri x konfigurasyonunda aynı olabilir
 	pitch_pid_t.Kp = PITCH_ROLL_KP;
 	pitch_pid_t.Ki = PITCH_ROLL_KI;
 	pitch_pid_t.Kd = PITCH_ROLL_KD;
+
+	pitch_pid_t.limMax = 450; //450;		//elde çalıştırınca buraları 0la
+	pitch_pid_t.limMin = -450; //-450;
+
+	pitch_pid_t.limMaxInt = 10000;
+	pitch_pid_t.limMinInt = 0;
+
+	roll_pid_t.limMax = 450; //450;
+	roll_pid_t.limMin = -450; //-450;
+
+	roll_pid_t.limMaxInt = 10000;
+	roll_pid_t.limMinInt = 0;
 
 	roll_pid_t.Kp = PITCH_ROLL_KP;
 	roll_pid_t.Ki = PITCH_ROLL_KI;
@@ -403,7 +495,8 @@ void StartImuTask(void const *argument) {
 		pitch_pid_t.T = deltaT;
 
 		__HAL_TIM_SET_COUNTER(&htim5, 0);
-		if (AUTONOMOUS_MODE == drive_mode) {
+
+		if (AUTONOMOUS_MODE == drive_mode) { //roll ve pitch pozitif veya negatif olmayabilir iflere girmez
 
 			//jetsondan gelen veriye göre wanted setpoint değerini burada güncelleyeceğiz
 			//imuda x yaw y pitch z roll
@@ -415,24 +508,40 @@ void StartImuTask(void const *argument) {
 				PID_PITCH = PIDController_Update(&pitch_pid_t, PWM_NEG_PITCH,
 						imu.y);	//pitch +180 -180 aralığında
 
+			} else if (uartBuffer.movementData.pitchNegative == FALSE
+					&& uartBuffer.movementData.pitchPositive == FALSE) {
+				PID_PITCH = PIDController_Update(&pitch_pid_t, PWM_NOTR_PITCH,
+						imu.y);	//pitch +180 -180 aralığında
+
 			}
+
 			if (uartBuffer.movementData.rollPositive == TRUE) {
 				PID_ROLL = PIDController_Update(&roll_pid_t, PWM_POS_ROLL,
 						imu.z);	//roll +90 -90 aralığında
+
 			} else if (uartBuffer.movementData.rollNegative == TRUE) {
 				PID_ROLL = PIDController_Update(&roll_pid_t, PWM_NEG_ROLL,
 						imu.z);	//roll +90 -90 aralığında
+
+			} else if (uartBuffer.movementData.rollPositive == FALSE
+					&& uartBuffer.movementData.rollNegative == FALSE) {
+				PID_PITCH = PIDController_Update(&roll_pid_t, PWM_NOTR_ROLL,
+						imu.z);	//roll +90 -90 aralığında
+
 			}
 		}
 
-		else {	//kumanda bölümü 		//ch5roll sol yan	//ch2 pitch
-			PID_PITCH = PIDController_Update(&pitch_pid_t, pwm_ch2.dutyCycle,
+		else {//kumanda bölümü 		//ikisini de +90 -90 aralığında verebiliriz//delta t yi parametre olarak verebiliriz
+			PID_PITCH = PIDController_Update(&pitch_pid_t, rc_pitch.dutyCycle,
 					imu.y);	//pitch +180 -180 aralığında
-			PID_ROLL = PIDController_Update(&roll_pid_t, pwm_ch5.dutyCycle,
+			PID_ROLL = PIDController_Update(&roll_pid_t, rc_roll.dutyCycle,
 					imu.z);	//roll +90 -90 aralığında
 		}
+
 		deltaT = __HAL_TIM_GET_COUNTER(&htim5);
-		deltaT = deltaT / 2;	//şu anda milisaniye olarak ölçüyoruz
+
+		//printf("PID_PITCH: %d\n", PID_PITCH);
+		//printf("PID_ROLL: %d\n", PID_ROLL);
 		osDelay(SAMPLE_TIME_IMU);
 
 	}
@@ -448,23 +557,22 @@ void StartImuTask(void const *argument) {
 /* USER CODE END Header_StartBatteryTask */
 void StartBatteryTask(void const *argument) {
 	/* USER CODE BEGIN StartBatteryTask */
-	//BatteryInit();
+//BatteryInit();
 	/* Infinite loop */
 	for (;;) {
-		/*
-		 battery.voltage = getBatteryVoltage();
+		battery.voltage = getBatteryVoltage();
 
-		 if (battery.voltage < FAILSAFE_VOLTAGE
-		 && battery.voltage >= DEAD_VOLTAGE) {
-		 battery.isBatteryLow = true;
+		if (battery.voltage < FAILSAFE_VOLTAGE
+				&& battery.voltage >= DEAD_VOLTAGE) {
+			battery.isBatteryLow = true;
 
-		 } else if (battery.voltage < DEAD_VOLTAGE) {
-		 battery.isBatteryDead = true;
-		 battery.isBatteryLow = false;
-		 } else {
-		 battery.isBatteryDead = false;
-		 battery.isBatteryLow = false;
-		 }*/
+		} else if (battery.voltage < DEAD_VOLTAGE) {
+			battery.isBatteryDead = true;
+			battery.isBatteryLow = false;
+		} else {
+			battery.isBatteryDead = false;
+			battery.isBatteryLow = false;
+		}
 		osDelay(SAMPLE_TIME_POWER_MODULE);
 	}
 	/* USER CODE END StartBatteryTask */

@@ -10,6 +10,7 @@
 
 #include "stm32f4xx_hal.h"
 #include "stdbool.h"
+#include "main.h"
 
 typedef struct {
 	uint32_t ICValue;
@@ -18,11 +19,11 @@ typedef struct {
 	bool isRCConnected;
 } pwm_input_t;
 
-extern pwm_input_t pwm_ch1;
-extern pwm_input_t pwm_ch2;
-extern pwm_input_t pwm_ch3;
-extern pwm_input_t pwm_ch4;
-extern pwm_input_t pwm_ch5;
+extern pwm_input_t rc_roll;
+extern pwm_input_t rc_yaw;
+extern pwm_input_t rc_mode;
+extern pwm_input_t rc_throttle;
+extern pwm_input_t rc_pitch;
 
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim3;
@@ -38,6 +39,5 @@ void pwm_read_ch2();
 void pwm_read_ch3();
 void pwm_read_ch4();
 void pwm_read_ch5();
-
 
 #endif /* INC_PWM_INPUT_H_ */

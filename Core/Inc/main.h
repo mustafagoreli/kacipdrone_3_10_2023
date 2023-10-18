@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stdbool.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -51,6 +51,11 @@ typedef union {
 	char buffer[8];
 	movementData_t movementData;
 } uartBuffer_t;
+
+typedef struct {
+	bool flag;
+	uint16_t counter;
+} failsafe_t;
 
 
 /* USER CODE END ET */

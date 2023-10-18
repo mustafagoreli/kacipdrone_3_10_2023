@@ -8,8 +8,12 @@
 
 #define MANUAL_MODE 0//otonom manual modda olduğunu gösterecek
 #define AUTONOMOUS_MODE 1
+#define SAFETY_MODE 2
+
 
 extern uint8_t drive_mode;
+
+//ch1 roll, ch2 yaw, ch3 mod, ch4 throttle, ch5 pitch
 
 //pwm read için 2 kanalda rising ve falling alıyor global interrupt yapılmalı internal clock kullanılmalı
 void pwm_enabled() {
@@ -48,54 +52,56 @@ void pwm_disabled() {
 
 void pwm_read_ch1() {
 	if (htim2.Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-		pwm_ch1.ICValue = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
+		rc_roll.ICValue = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
 
-		if (pwm_ch1.ICValue != 0) {
-			pwm_ch1.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim2,
-			TIM_CHANNEL_2) * 15000) / pwm_ch1.ICValue; //max2000 oluyor pwm out ile aynı
+		if (rc_roll.ICValue != 0) {
+			rc_roll.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim2,
+			TIM_CHANNEL_2) * 15000) / rc_roll.ICValue; //max2000 oluyor pwm out ile aynı
 
-			pwm_ch1.frequency = 400000 / pwm_ch1.ICValue;
+			rc_roll.frequency = 400000 / rc_roll.ICValue;
 		}
 	}
 }
 void pwm_read_ch2() {
 	if (htim3.Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-		pwm_ch2.ICValue = HAL_TIM_ReadCapturedValue(&htim3, TIM_CHANNEL_1);
+		rc_yaw.ICValue = HAL_TIM_ReadCapturedValue(&htim3, TIM_CHANNEL_1);
 
-		if (pwm_ch2.ICValue != 0) {
-			pwm_ch2.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim3,
-			TIM_CHANNEL_2) * 15000) / pwm_ch2.ICValue;
+		if (rc_yaw.ICValue != 0) {
+			rc_yaw.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim3,
+			TIM_CHANNEL_2) * 15000) / rc_yaw.ICValue;
 
-			pwm_ch2.frequency = 400000 / pwm_ch2.ICValue;
+			rc_yaw.frequency = 400000 / rc_yaw.ICValue;
 		}
 	}
 }
 void pwm_read_ch3() {
 	if (htim4.Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-		pwm_ch3.ICValue = HAL_TIM_ReadCapturedValue(&htim4, TIM_CHANNEL_1);
+		rc_mode.ICValue = HAL_TIM_ReadCapturedValue(&htim4, TIM_CHANNEL_1);
 
-		if (pwm_ch3.ICValue != 0) {
-			pwm_ch3.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim4,
-			TIM_CHANNEL_2) * 15000) / pwm_ch3.ICValue;
+		if (rc_mode.ICValue != 0) {
+			rc_mode.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim4,
+			TIM_CHANNEL_2) * 15000) / rc_mode.ICValue;
 
-			pwm_ch3.frequency = 400000 / pwm_ch3.ICValue;
+			rc_mode.frequency = 400000 / rc_mode.ICValue;
 		}
 	}
 
 }
 void pwm_read_ch4() {
 	if (htim9.Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-		pwm_ch4.ICValue = HAL_TIM_ReadCapturedValue(&htim9, TIM_CHANNEL_1);
+		rc_throttle.ICValue = HAL_TIM_ReadCapturedValue(&htim9, TIM_CHANNEL_1);
 
-		if (pwm_ch4.ICValue != 0) {
-			pwm_ch4.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim9,
-			TIM_CHANNEL_2) * 15000) / pwm_ch4.ICValue;
+		if (rc_throttle.ICValue != 0) {
+			rc_throttle.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim9,
+			TIM_CHANNEL_2) * 15000) / rc_throttle.ICValue;
 
-			pwm_ch4.frequency = 400000 / pwm_ch4.ICValue;
-			if (pwm_ch5.dutyCycle < 1700) { // sadece 2 mod var kumanda da 3 mod var. kill mod falan eklenmek isteniyor ise kod eklenebilir.
+			rc_throttle.frequency = 400000 / rc_throttle.ICValue;
+			if (rc_mode.dutyCycle < 1200) { // sadece 2 mod var kumanda da 3 mod var. kill mod falan eklenmek isteniyor ise kod eklenebilir.
 				drive_mode = MANUAL_MODE;	// yukarıda iken manuel modda
-			} else if (pwm_ch5.dutyCycle > 1700) {
+			} else if (rc_mode.dutyCycle > 1700) {
 				drive_mode = AUTONOMOUS_MODE;
+			} else if (rc_mode.dutyCycle < 1700 || rc_mode.dutyCycle > 1200) {
+				drive_mode = SAFETY_MODE;
 			}
 		}
 	}
@@ -103,13 +109,13 @@ void pwm_read_ch4() {
 }
 void pwm_read_ch5() {
 	if (htim12.Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-		pwm_ch5.ICValue = HAL_TIM_ReadCapturedValue(&htim12, TIM_CHANNEL_1);
+		rc_pitch.ICValue = HAL_TIM_ReadCapturedValue(&htim12, TIM_CHANNEL_1);
 
-		if (pwm_ch5.ICValue != 0) {
-			pwm_ch5.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim12,
-			TIM_CHANNEL_2) * 15000) / pwm_ch5.ICValue;
+		if (rc_pitch.ICValue != 0) {
+			rc_pitch.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim12,
+			TIM_CHANNEL_2) * 15000) / rc_pitch.ICValue;
 
-			pwm_ch5.frequency = 400000 / pwm_ch5.ICValue;
+			rc_pitch.frequency = 400000 / rc_pitch.ICValue;
 
 		}
 	}

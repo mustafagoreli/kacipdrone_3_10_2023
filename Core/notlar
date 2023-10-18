@@ -1,3 +1,23 @@
+
+escde sample time 200 yapıldı
+min duty 1200 oldu
+kumanda 1100-1900 arası ama esc hesabı 1000-2000e göre
+
+
+
+imu.x yaw //0-360 arası
+imu.y pitch //pitch +180 -180 aralığında
+imu.z roll //roll -90 +90 arası
+
+esc 1000-2000 arası
+
+kumanda 1100-1900 arası
+
+delta T 22,33 mikrosaniye 
+
+
+
+/*	//eski esc 17.10.2023
 /*
  * esc.c
  *
@@ -26,22 +46,22 @@ void init_esc() {
 
 void drive_motor_1(int pwm1Val) {
 
-	TIM1->CCR3 = pwm1Val;
+	TIM1->CCR1 = pwm1Val;	//3
 }
 
 void drive_motor_2(int pwm2Val) {
 
-	TIM1->CCR1 = pwm2Val;
+	TIM1->CCR2 = pwm2Val;	//2
 }
 
 void drive_motor_3(int pwm3Val) {
 
-	TIM1->CCR4 = pwm3Val;
+	TIM1->CCR3 = pwm3Val;	//1
 }
 
 void drive_motor_4(int pwm4Val) {
 
-	TIM1->CCR2 = pwm4Val;
+	TIM1->CCR4 = pwm4Val;	//4
 }
 
 void set_pwm(float roll_pid, float pitch_pid, float yaw_pid, uint16_t throttle,
@@ -95,7 +115,6 @@ void set_pwm(float roll_pid, float pitch_pid, float yaw_pid, uint16_t throttle,
 	if (pulse_length_esc4 < MIN_PWM_OUTPUT)
 		pulse_length_esc4 = MIN_PWM_OUTPUT;
 
-	//*********************************************************************************************//
 	if (throttle < 1200) { //throttle minimum'a indirilince tüm motorları durdur
 		pulse_length_esc4 = MIN_PWM_OUTPUT;
 		pulse_length_esc3 = MIN_PWM_OUTPUT;
@@ -103,12 +122,6 @@ void set_pwm(float roll_pid, float pitch_pid, float yaw_pid, uint16_t throttle,
 		pulse_length_esc1 = MIN_PWM_OUTPUT;
 	}
 
-	drive_motor_1(pulse_length_esc1); // motor sürme fonksiyonları		motor3ü çalıştırıyor1
-	drive_motor_2(pulse_length_esc2);	//motor2
-	drive_motor_3(pulse_length_esc3);	//motor1
-	drive_motor_4(pulse_length_esc4);	//motor4
-
-	printf("\n");
 	gcvt(pulse_length_esc1, 8, ptr2);
 	printf("esc1 = ");
 	printf(ptr2);
@@ -128,8 +141,17 @@ void set_pwm(float roll_pid, float pitch_pid, float yaw_pid, uint16_t throttle,
 	printf("esc4 = ");
 	printf(ptr2);
 	printf("\n");
+	printf("..............");
+
+	drive_motor_1(pulse_length_esc2); // motor sürme fonksiyonları		motor3ü çalıştırıyor1
+	drive_motor_2(pulse_length_esc2);	//motor2
+	drive_motor_3(pulse_length_esc4);	//motor1
+	drive_motor_4(pulse_length_esc4);	//motor4
+
+
+
 
 }
 
 
-
+*/
