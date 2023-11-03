@@ -10,10 +10,7 @@
 #define AUTONOMOUS_MODE 1
 #define SAFETY_MODE 2
 
-
 extern uint8_t drive_mode;
-
-//ch1 roll, ch2 yaw, ch3 mod, ch4 throttle, ch5 pitch
 
 //pwm read için 2 kanalda rising ve falling alıyor global interrupt yapılmalı internal clock kullanılmalı
 void pwm_enabled() {
@@ -84,28 +81,31 @@ void pwm_read_ch3() {
 
 			rc_mode.frequency = 400000 / rc_mode.ICValue;
 		}
+
+		if (rc_mode.dutyCycle < 1200) { // sadece 2 mod var kumanda da 3 mod var. kill mod falan eklenmek isteniyor ise kod eklenebilir.
+			drive_mode = MANUAL_MODE;	// yukarıda iken manuel modda
+		} else if (rc_mode.dutyCycle > 1700) {
+			drive_mode = SAFETY_MODE;	//BURAYI OTONOM MOD YAZACAĞIZ GÜVENLİK İÇİN ŞU AN SAFETY'DE
+		} else if (rc_mode.dutyCycle < 1700 || rc_mode.dutyCycle > 1200) {
+			drive_mode = SAFETY_MODE;
+		}
+	}
+}
+
+
+void pwm_read_ch4() {
+if (htim9.Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
+	rc_throttle.ICValue = HAL_TIM_ReadCapturedValue(&htim9, TIM_CHANNEL_1);
+
+	if (rc_throttle.ICValue != 0) {
+		rc_throttle.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim9,
+		TIM_CHANNEL_2) * 15000) / rc_throttle.ICValue;
+
+		rc_throttle.frequency = 400000 / rc_throttle.ICValue;
+
 	}
 
 }
-void pwm_read_ch4() {
-	if (htim9.Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-		rc_throttle.ICValue = HAL_TIM_ReadCapturedValue(&htim9, TIM_CHANNEL_1);
-
-		if (rc_throttle.ICValue != 0) {
-			rc_throttle.dutyCycle = (HAL_TIM_ReadCapturedValue(&htim9,
-			TIM_CHANNEL_2) * 15000) / rc_throttle.ICValue;
-
-			rc_throttle.frequency = 400000 / rc_throttle.ICValue;
-			if (rc_mode.dutyCycle < 1200) { // sadece 2 mod var kumanda da 3 mod var. kill mod falan eklenmek isteniyor ise kod eklenebilir.
-				drive_mode = MANUAL_MODE;	// yukarıda iken manuel modda
-			} else if (rc_mode.dutyCycle > 1700) {
-				drive_mode = AUTONOMOUS_MODE;
-			} else if (rc_mode.dutyCycle < 1700 || rc_mode.dutyCycle > 1200) {
-				drive_mode = SAFETY_MODE;
-			}
-		}
-	}
-
 }
 void pwm_read_ch5() {
 	if (htim12.Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
@@ -116,7 +116,12 @@ void pwm_read_ch5() {
 			TIM_CHANNEL_2) * 15000) / rc_pitch.ICValue;
 
 			rc_pitch.frequency = 400000 / rc_pitch.ICValue;
-
 		}
 	}
+}
+
+float MAP(float INvariable, float INmin, float INmax, float OUTmin,
+		float OUTmax) {
+	return (float) ((((INvariable - INmin) * (OUTmax - OUTmin))
+			/ (INmax - INmin)) + OUTmin);
 }

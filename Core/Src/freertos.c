@@ -50,16 +50,27 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-//TUM
-//BUNLARDAN BAZILARINI MUHTEMELEN YORUMA CEKECEGIZ, AYRICA HER BIRINE IDEAL DEGER ATANACAK
-#define SAMPLE_TIME_BAROMETER 1000
+//TUM BUNLARDAN BAZILARINI MUHTEMELEN YORUMA CEKECEGIZ, AYRICA HER BIRINE IDEAL DEGER ATANACAK
+#define PITCH_KP 5.0	//DEGISECEK, PID PARAMETRELERI
+#define PITCH_KI 0.000001
+#define PITCH_KD 110000
+
+#define ROLL_KP 5.0	//DEGISECEK, PID PARAMETRELERI
+#define ROLL_KI 0.000001
+#define ROLL_KD 110000
+
+#define YAW_KP 0.31	//DEGISECEK, PID PARAMETRELERI
+#define YAW_KI 0.0000001
+#define YAW_KD 0
+
+#define SAMPLE_TIME_BAROMETER 100
 #define SAMPLE_TIME_POWER_MODULE 2000
 
 #define SAMPLE_TIME_GPS 100
 
-#define SAMPLE_TIME_TX 200
-#define SAMPLE_TIME_IMU 20//20ye veya 2ye çekicez
-#define SAMPLE_TIME_ESC 500//100		//bu da imu da daha hızlı olmalı, tx*5 olabilir
+#define SAMPLE_TIME_TX 1000
+#define SAMPLE_TIME_IMU 4//20ye veya 2ye çekicez
+#define SAMPLE_TIME_ESC 20//100		//bu da imu da daha hızlı olmalı, tx*5 olabilir
 
 #define SAMPLE_TIME_FAILSAFE 100
 #define FAILSAFE_ACTIVATE_TIME 1500//6000olacak giriyor
@@ -67,13 +78,14 @@
 #define FAILSAFE_VOLTAGE 15.2	//DEGISECEK
 #define DEAD_VOLTAGE 14.2
 
-#define PITCH_ROLL_KP 0.05	//DEGISECEK, PID PARAMETRELERI
-#define PITCH_ROLL_KI 0.00005
-#define PITCH_ROLL_KD 50
-
 #define PWM_POS_PITCH 1700//jetsondan gelen verilere göre pozitif veya negatif pitch/roll vereceğiz
 #define PWM_NOTR_PITCH 1500	//take off landing ve stabil olması için
 #define PWM_NEG_PITCH 1300//bunlar da onların sabit pwmleri, sabit olmazsa değiştiririz
+
+#define PITCH_MIN_ANGLE -45
+#define PITCH_MAX_ANGLE 45
+#define ROLL_MIN_ANGLE -45
+#define ROLL_MAX_ANGLE 45
 
 #define PWM_POS_ROLL 1700
 #define PWM_NOTR_ROLL 1500
@@ -106,6 +118,7 @@
 // ************************   PID start   *********************************
 PIDController pitch_pid_t;
 PIDController roll_pid_t;
+PIDController yaw_pid_t;
 //PIDController height_pid_t;
 int deltaT = 0;
 bno055_vector_t imu;
@@ -137,7 +150,6 @@ char RMC[100];
 GPSSTRUCT gpsData;
 int flagGGA = 0, flagRMC = 0;
 int VCCTimeout = 5000;
-char GGA[] = "GGA";
 // ************************   GPS finish   *********************************
 // ************************   FAILSAFE start   *********************************
 extern failsafe_t failsafe;
@@ -210,7 +222,7 @@ void MX_FREERTOS_Init(void) {
 
 	/* Create the thread(s) */
 	/* definition and creation of sendDataTask */
-	osThreadDef(sendDataTask, StartSendDataTask, osPriorityNormal, 0, 128);
+	osThreadDef(sendDataTask, StartSendDataTask, osPriorityIdle, 0, 128);
 	sendDataTaskHandle = osThreadCreate(osThread(sendDataTask), NULL);
 
 	/* definition and creation of barometerTask */
@@ -222,7 +234,7 @@ void MX_FREERTOS_Init(void) {
 	escTaskHandle = osThreadCreate(osThread(escTask), NULL);
 
 	/* definition and creation of imuTask */
-	osThreadDef(imuTask, StartImuTask, osPriorityIdle, 0, 128);
+	osThreadDef(imuTask, StartImuTask, osPriorityRealtime, 0, 128);
 	imuTaskHandle = osThreadCreate(osThread(imuTask), NULL);
 
 	/* definition and creation of batteryTask */
@@ -282,14 +294,15 @@ void StartSendDataTask(void const *argument) {
 		 gcvt(battery.voltage, 8, ptr);
 		 printf(ptr);
 		 printf("f\n");
-
-		 gcvt(bme280.altitude, 8, ptr);
+		 */
+		/*
+		 gcvt(bme280.finalAltitude, 8, ptr);
 		 printf("BAROMETRE = ");
 		 printf(ptr);
 		 printf("\n");
+		 */
 
-
-
+		/*
 		 gcvt(gpsData.ggastruct.lcation.latitude, 8, ptr);
 		 printf("Lat = ");
 		 printf(ptr);
@@ -300,55 +313,82 @@ void StartSendDataTask(void const *argument) {
 		 printf("\n");
 		 //motorlara iletilen pwmler
 
-		 *//*
-		 gcvt(battery.voltage, 8, ptr);
-		 printf("Battery Voltage = ");
+		 IMUYaw = MAP(imu.x, 0.0, 360.0, -180.0, 180.0);
+		 gcvt(IMUYaw, 8, ptr);
+		 printf("\nIMU YAW = \n");
 		 printf(ptr);
-		 printf("\n");
+		 printf("\n----------\n");
+
+		 gcvt(rc_yaw.rcToAngle, 6, ptr);
+		 printf("\nKUMANDA YAW = \n");
+		 printf(ptr);
+		 printf("\n----------\n");
 		 */
 		/*
-		printf("\n\n");
-		gcvt(imu.x, 8, ptr);
-		printf("YAW = ");
-		printf(ptr);
-		printf("\n");
-		gcvt(imu.y, 8, ptr);
-		printf("PITCH = ");
-		printf(ptr);
-		printf("\n");
-		gcvt(imu.z, 8, ptr);
-		printf("ROLL = ");
-		printf(ptr);
-		printf("\n");
-*/
-		/*
-		 printf("\n\n");
-		 gcvt(rc_pitch.dutyCycle, 8, ptr);
-		 printf("pitch dutyCycle = ");
+		 gcvt(rc_yaw.rcToAngle, 8, ptr);
+		 printf("rc yaw to angle = ");
 		 printf(ptr);
 		 printf("\n");
-		 gcvt(rc_roll.dutyCycle, 8, ptr);
-		 printf("roll dutyCycle = ");
-		 printf(ptr);
-		 printf("\n");
+
 		 gcvt(rc_yaw.dutyCycle, 8, ptr);
 		 printf("yaw dutyCycle = ");
 		 printf(ptr);
+		 printf("\n\n");
+
+		 gcvt(rc_roll.rcToAngle, 8, ptr);
+		 printf("rc roll to angle = ");
+		 printf(ptr);
 		 printf("\n");
+
+		 gcvt(rc_roll.dutyCycle, 8, ptr);
+		 printf("roll dutyCycle = ");
+		 printf(ptr);
+		 printf("\n\n");
+
+		 gcvt(rc_pitch.rcToAngle, 8, ptr);
+		 printf("rc pitch to angle = ");
+		 printf(ptr);
+		 printf("\n");
+
+
+
+		 gcvt(rc_pitch.dutyCycle, 8, ptr);
+		 printf("pitch dutyCycle = ");
+		 printf(ptr);
+		 printf("\n\n\n----");
+
 		 gcvt(rc_throttle.dutyCycle, 8, ptr);
 		 printf("throttle dutyCycle = ");
 		 printf(ptr);
 		 printf("\n");
+		 */
+		/*
+		 gcvt(imu.x, 8, ptr);
+		 printf("yaw = ");
+		 printf(ptr);
+		 printf("\n");
+
+		 printf("-------------------IMU------------\n");
+		 gcvt(imu.y, 8, ptr);
+		 printf("PITCH = ");
+		 printf(ptr);
+		 printf("\n");
+		 gcvt(imu.z, 8, ptr);
+		 printf("ROLL = ");
+		 printf(ptr);
+		 printf("\n");
+
+
 
 		 gcvt(rc_mode.dutyCycle, 8, ptr);
 		 printf("mode dutyCycle = ");
 		 printf(ptr);
 
-
 		 printf("\n\n");
-		 if(failsafe.flag == true){
+		 if (failsafe.flag == true) {
 		 printf("FAILSAFE IS ACTIVATED!\n");
-		 }*/
+		 }
+		 */
 
 		osDelay(SAMPLE_TIME_TX);
 	}
@@ -365,6 +405,7 @@ void StartSendDataTask(void const *argument) {
 void startBarometerTask(void const *argument) {
 	/* USER CODE BEGIN startBarometerTask */
 	BME280_Config(OSRS_2, OSRS_16, OSRS_1, MODE_NORMAL, T_SB_0p5, IIR_16);
+	osDelay(SAMPLE_TIME_BAROMETER);
 	BME280_Measure();
 	bme280.initialAltitude = 44330
 			* (1
@@ -392,7 +433,7 @@ void startBarometerTask(void const *argument) {
 /* USER CODE END Header_startEscTask */
 void startEscTask(void const *argument) {
 	/* USER CODE BEGIN startEscTask */
-	//init_esc();
+//init_esc();
 	/* Infinite loop */
 	for (;;) {
 		if (AUTONOMOUS_MODE == drive_mode) {
@@ -415,17 +456,17 @@ void startEscTask(void const *argument) {
 
 			} else if (uartBuffer.movementData.landing == TRUE) { //OTONOM LANDING
 
-				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1300, battery, esc);
-				osDelay(TAKEOFF_STEP_TIME);
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1700, battery, esc);
+				osDelay(LAND_STEP_TIME);
+
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1650, battery, esc);
+				osDelay(LAND_STEP_TIME);
 
 				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1500, battery, esc);
-				osDelay(TAKEOFF_STEP_TIME);
+				osDelay(LAND_STEP_TIME);
 
-				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1700, battery, esc);
-				osDelay(TAKEOFF_STEP_TIME);
-
-				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1800, battery, esc);
-				osDelay(TAKEOFF_STEP_TIME);
+				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, 1300, battery, esc);
+				osDelay(LAND_STEP_TIME);
 
 			} else {
 				set_pwm(PID_ROLL, PID_PITCH, PID_YAW, PWM_CRUISE, battery, esc);
@@ -437,10 +478,7 @@ void startEscTask(void const *argument) {
 			drive_motor_2(MIN_PWM_OUTPUT);
 			drive_motor_3(MIN_PWM_OUTPUT);
 			drive_motor_4(MIN_PWM_OUTPUT);
-
-		}
-
-		else { 	//aksi halde manuel sürüş
+		} else { 	//aksi halde manuel sürüş
 			set_pwm(PID_ROLL, PID_PITCH, PID_YAW, rc_throttle.dutyCycle,
 					battery, esc); //ch3 throttle
 		}
@@ -467,35 +505,55 @@ void StartImuTask(void const *argument) {
 	PIDController_Init(&pitch_pid_t); //pid sıfırlama
 	PIDController_Init(&roll_pid_t);
 
+//PITCH LIMITLERI
+	pitch_pid_t.limMax = 150; //150;		//elde çalıştırınca buraları 0la	MAX
+	pitch_pid_t.limMin = -150; //-150;
+
+	pitch_pid_t.limMaxInt = 60;
+	pitch_pid_t.limMinInt = -60;
+
+//ROLL LIMITLERI
+	roll_pid_t.limMax = 150; //150;	//elde çalıştırınca buraları 0la	MAX
+	roll_pid_t.limMin = -150; //-150;
+
+	roll_pid_t.limMaxInt = 60;		//İNTEGRAL LİMİT
+	roll_pid_t.limMinInt = -60;
+
+//YAW LIMITLERI
+	yaw_pid_t.limMax = 50; //150;	//YAW LİMİT DÜZELT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	yaw_pid_t.limMin = -50; //-150;
+
+	yaw_pid_t.limMaxInt = 60;		//İNTEGRAL LİMİT
+	yaw_pid_t.limMinInt = -60;
+
+//PARAMETRE ATAMA
 //pitch ve roll pid parametreleri x konfigurasyonunda aynı olabilir
-	pitch_pid_t.Kp = PITCH_ROLL_KP;
-	pitch_pid_t.Ki = PITCH_ROLL_KI;
-	pitch_pid_t.Kd = PITCH_ROLL_KD;
+	pitch_pid_t.Kp = PITCH_KP;
+	pitch_pid_t.Ki = PITCH_KI;
+	pitch_pid_t.Kd = PITCH_KD;
 
-	pitch_pid_t.limMax = 450; //450;		//elde çalıştırınca buraları 0la
-	pitch_pid_t.limMin = -450; //-450;
+	roll_pid_t.Kp = ROLL_KP;
+	roll_pid_t.Ki = ROLL_KI;
+	roll_pid_t.Kd = ROLL_KD;
 
-	pitch_pid_t.limMaxInt = 10000;
-	pitch_pid_t.limMinInt = 0;
+	yaw_pid_t.Kp = YAW_KP;
+	yaw_pid_t.Ki = YAW_KI;
+	yaw_pid_t.Kd = YAW_KD;
 
-	roll_pid_t.limMax = 450; //450;
-	roll_pid_t.limMin = -450; //-450;
-
-	roll_pid_t.limMaxInt = 10000;
-	roll_pid_t.limMinInt = 0;
-
-	roll_pid_t.Kp = PITCH_ROLL_KP;
-	roll_pid_t.Ki = PITCH_ROLL_KI;
-	roll_pid_t.Kd = PITCH_ROLL_KD;
+	pitch_pid_t.ID = PITCH_ID;
+	roll_pid_t.ID = ROLL_ID;
+	yaw_pid_t.ID = YAW_ID;
 
 	for (;;) {
 		imu = bno055_getVectorEuler();
 
 		roll_pid_t.T = deltaT;
 		pitch_pid_t.T = deltaT;
+		yaw_pid_t.T = deltaT;
 
 		__HAL_TIM_SET_COUNTER(&htim5, 0);
 
+		//OTONOMDA ŞU AN YAW YOK!!!!!!!!!!!!!!!!!!!!
 		if (AUTONOMOUS_MODE == drive_mode) { //roll ve pitch pozitif veya negatif olmayabilir iflere girmez
 
 			//jetsondan gelen veriye göre wanted setpoint değerini burada güncelleyeceğiz
@@ -531,19 +589,50 @@ void StartImuTask(void const *argument) {
 			}
 		}
 
-		else {//kumanda bölümü 		//ikisini de +90 -90 aralığında verebiliriz//delta t yi parametre olarak verebiliriz
-			PID_PITCH = PIDController_Update(&pitch_pid_t, rc_pitch.dutyCycle,
-					imu.y);	//pitch +180 -180 aralığında
-			PID_ROLL = PIDController_Update(&roll_pid_t, rc_roll.dutyCycle,
-					imu.z);	//roll +90 -90 aralığında
-		}
+		else {	//kumanda bölümü
+			if (rc_throttle.dutyCycle > 1200) {
 
-		deltaT = __HAL_TIM_GET_COUNTER(&htim5);
+				//kumanda map
+				rc_pitch.rcToAngle = MAP(rc_pitch.dutyCycle, MIN_PWM_OUTPUT,
+				MAX_PWM_OUTPUT, PITCH_MIN_ANGLE, PITCH_MAX_ANGLE);
+
+				rc_roll.rcToAngle = MAP(rc_roll.dutyCycle, MIN_PWM_OUTPUT,
+				MAX_PWM_OUTPUT, ROLL_MIN_ANGLE, ROLL_MAX_ANGLE);
+
+				rc_yaw.rcToAngle = MAP(rc_yaw.dutyCycle, 1099, 1919, -180.0,
+						180.0);
+
+				PID_PITCH = PIDController_Update(&pitch_pid_t,
+						rc_pitch.rcToAngle, imu.y);	//pitch +180 -180 aralığında
+				PID_ROLL = PIDController_Update(&roll_pid_t, rc_roll.rcToAngle,
+						imu.z);	//roll +90 -90 aralığında
+
+				//IMUYaw = MAP(imu.x, 0.0, 360.0, -180.0, 180.0);
+
+				PID_YAW = PIDController_Update(&yaw_pid_t, rc_yaw.rcToAngle,
+						imu.x);	//yaw +0 +360 aralığında
+				/*
+				 gcvt(IMUYaw, 8, ptr);
+				 printf("IMUYaw = ");
+				 printf(ptr);
+				 printf("\n");
+
+				 gcvt(imu.x, 8, ptr);
+				 printf("IMU X islenmemis = ");
+				 printf(ptr);
+				 printf("\n");
+				 */
+
+			}
+
+		}
 
 		//printf("PID_PITCH: %d\n", PID_PITCH);
 		//printf("PID_ROLL: %d\n", PID_ROLL);
+
 		osDelay(SAMPLE_TIME_IMU);
 
+		deltaT = __HAL_TIM_GET_COUNTER(&htim5);
 	}
 	/* USER CODE END StartImuTask */
 }
@@ -573,6 +662,24 @@ void StartBatteryTask(void const *argument) {
 			battery.isBatteryDead = false;
 			battery.isBatteryLow = false;
 		}
+		if (battery.voltage < 14.3 && rc_throttle.dutyCycle < 1200.0) {
+			HAL_GPIO_TogglePin(led_1_GPIO_Port, led_1_Pin);/*
+			 printf("Low Battery!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+			 printf("Low Battery!!!\n");
+			 printf("Low Battery!!!\n");
+			 printf("Low Battery!!!\n");
+			 printf("Low Battery!!!\n");
+			 printf("Low Battery!!!\n");
+			 printf("Low Battery!!!\n");
+			 printf("Low Battery!!!\n");
+			 printf("Low Battery!!!\n");
+			 printf("Low Battery!!!\n");
+			 printf("Low Battery!!!!!!!!!!!!!!!!!!!!!!!\n");*/
+		}
+		gcvt(battery.voltage, 8, ptr);
+		printf("Battery Voltage = ");
+		printf(ptr);
+		printf("\n");
 		osDelay(SAMPLE_TIME_POWER_MODULE);
 	}
 	/* USER CODE END StartBatteryTask */
@@ -589,46 +696,51 @@ void StartGPSTask(void const *argument) {
 	/* USER CODE BEGIN StartGPSTask */
 	/* Infinite loop */
 	for (;;) {
-		if (Wait_for(GGA) == 1) {
+		/*
+		 if (Wait_for("GGA") == 1) {
 
-			VCCTimeout = 5000; // Reset the VCC Timeout indicating the GGA is being received
+		 VCCTimeout = 5000; // Reset the VCC Timeout indicating the GGA is being received
 
-			Copy_upto("*", GGA);
-			if (decodeGGA(GGA, &gpsData.ggastruct) == 0)
-				flagGGA = 2;  // 2 indicates the data is valid
-			else
-				flagGGA = 1;  // 1 indicates the data is invalid
-		}
+		 Copy_upto("*", GGA);
+		 if (decodeGGA(GGA, &gpsData.ggastruct) == 0)
+		 flagGGA = 2;  // 2 indicates the data is valid
+		 else
+		 flagGGA = 1;  // 1 indicates the data is invalid
+		 }
 
-		if (Wait_for("RMC") == 1) {
+		 if (Wait_for("RMC") == 1) {
 
-			VCCTimeout = 5000; // Reset the VCC Timeout indicating the RMC is being received
+		 VCCTimeout = 5000; // Reset the VCC Timeout indicating the RMC is being received
 
-			Copy_upto("*", RMC);
-			if (decodeRMC(RMC, &gpsData.rmcstruct) == 0)
-				flagRMC = 2;  // 2 indicates the data is valid
-			else
-				flagRMC = 1;  // 1 indicates the data is invalid
-		}
+		 Copy_upto("*", RMC);
+		 if (decodeRMC(RMC, &gpsData.rmcstruct) == 0)
+		 flagRMC = 2;  // 2 indicates the data is valid
+		 else
+		 flagRMC = 1;  // 1 indicates the data is invalid
+		 }
 
-		if ((flagGGA == 2) | (flagRMC == 2)) {
-		}
+		 if ((flagGGA == 2) | (flagRMC == 2)) {
+		 printf("2sinden 1 2 \n");
+		 }
 
-		else if ((flagGGA == 1) | (flagRMC == 1)) {
-			// Instead of clearing the display, it's better if we print spaces.
-			// This will avoid the "refreshing" part
-		}
+		 else if ((flagGGA == 1) | (flagRMC == 1)) {
+		 // Instead of clearing the display, it's better if we print spaces.
+		 // This will avoid the "refreshing" part
+		 printf("2sinden 1i 1 \n");
 
-		if (VCCTimeout <= 0) {
-			VCCTimeout = 5000;  // Reset the timeout
+		 }
 
-			//reset flags
-			flagGGA = flagRMC = 0;
+		 if (VCCTimeout <= 0) {
+		 VCCTimeout = 5000;  // Reset the timeout
 
-			// You are here means the VCC is less, or maybe there is some connection issue
-			// Check the VCC, also you can try connecting to the external 5V
-		}
+		 //reset flags
+		 flagGGA = flagRMC = 0;
+		 printf("Timeout\n");
 
+		 // You are here means the VCC is less, or maybe there is some connection issue
+		 // Check the VCC, also you can try connecting to the external 5V
+		 }
+		 */
 		osDelay(SAMPLE_TIME_GPS);
 	}
 	/* USER CODE END StartGPSTask */

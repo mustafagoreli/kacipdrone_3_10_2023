@@ -1,7 +1,8 @@
-../Core/Src/pwm_input.c:19:6:pwm_enabled	1
-../Core/Src/pwm_input.c:36:6:pwm_disabled	1
-../Core/Src/pwm_input.c:53:6:pwm_read_ch1	3
-../Core/Src/pwm_input.c:65:6:pwm_read_ch2	3
-../Core/Src/pwm_input.c:77:6:pwm_read_ch3	3
-../Core/Src/pwm_input.c:90:6:pwm_read_ch4	7
+../Core/Src/pwm_input.c:16:6:pwm_enabled	1
+../Core/Src/pwm_input.c:33:6:pwm_disabled	1
+../Core/Src/pwm_input.c:50:6:pwm_read_ch1	3
+../Core/Src/pwm_input.c:62:6:pwm_read_ch2	3
+../Core/Src/pwm_input.c:74:6:pwm_read_ch3	7
+../Core/Src/pwm_input.c:96:6:pwm_read_ch4	3
 ../Core/Src/pwm_input.c:110:6:pwm_read_ch5	3
+../Core/Src/pwm_input.c:123:7:MAP	1

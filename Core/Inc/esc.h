@@ -26,7 +26,7 @@ typedef struct{
 //#define BATTERY_REMAINING_VOLTAGE 1	//parametre olarak veya global değişkenle veririz
 #define BATTERY_START_VOLTAGE 16.8
 #define BATTERY_COMPENSATION_COEFFICIENT 12.7
-#define MAX_PWM_OUTPUT 1950
+#define MAX_PWM_OUTPUT 1925
 #define MIN_PWM_OUTPUT 1100
 
 void init_esc();

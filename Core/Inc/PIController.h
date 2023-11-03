@@ -1,6 +1,8 @@
 #ifndef PID_CONTROLLER_H
 #define PID_CONTROLLER_H
 
+#include "main.h"
+
 typedef struct {
 
 	/* Controller gains */
@@ -30,8 +32,11 @@ typedef struct {
 	float differentiator;
 	float prevMeasurement;		/* Required for differentiator */
 
-	/* Controller output */
+	/* Controller output
+	 * */
 	float out;
+
+	int ID;
 
 } PIDController;
 

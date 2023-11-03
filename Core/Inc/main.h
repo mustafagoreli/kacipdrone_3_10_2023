@@ -57,6 +57,11 @@ typedef struct {
 	uint16_t counter;
 } failsafe_t;
 
+#define PITCH_ID 1
+#define ROLL_ID 2
+#define YAW_ID 3
+
+
 
 /* USER CODE END ET */
 
@@ -110,6 +115,8 @@ void Error_Handler(void);
 #define led_2_GPIO_Port GPIOD
 #define led_1_Pin GPIO_PIN_14
 #define led_1_GPIO_Port GPIOD
+#define hard_fault_led_Pin GPIO_PIN_15
+#define hard_fault_led_GPIO_Port GPIOD
 #define imu_sda_i2c3_Pin GPIO_PIN_9
 #define imu_sda_i2c3_GPIO_Port GPIOC
 #define imu_scl_i2c3_Pin GPIO_PIN_8

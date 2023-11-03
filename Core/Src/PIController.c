@@ -1,8 +1,11 @@
 #include "PIController.h"
 #include "stdio.h"
+#include "pwm_input.h"
+
 char ptr3[100];
 int pid_debug_counter;
-
+float debug_yaw_speed_once = 0.0;
+float yaw_speed, IMUYaw;
 //burada pid limmax ve lim min silinmeli çünkü biz throttle-pitch+yaw-roll vs gibi formüller kullanıyoruz..
 //..bunların tamamının limiti konulmalı(pwm max ve pwm min olmalı bu da)
 
@@ -16,7 +19,7 @@ void PIDController_Init(PIDController *pid) {
 
 	pid->differentiator = 0.0f;
 	pid->prevMeasurement = 0.0f;
-	pid->T = 3.0f;
+	pid->T = 3000;
 
 	pid->out = 0.0f;
 	pid_debug_counter = 0;
@@ -28,16 +31,98 @@ float PIDController_Update(PIDController *pid, float setpoint,
 	/*
 	 * Error signal
 	 */
+	/*
+	 gcvt(measurement, 8, ptr3);
+	 printf("measurement = ");
+	 printf(ptr3);
+	 printf("\n");
+	 */
 
+	if(pid->ID == ROLL_ID){
+		if(measurement < 0){
+			measurement = measurement * 0.95;
+		}else{
+			measurement = measurement * 1.05;
+		}
+	}
+
+	float error = 0.0;
 	if (pid->T == 0)
-		pid->T = 3;
+		pid->T = 3000; //sample time değişince değiştir!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-	float error = setpoint - measurement; //setpoint 1k-2k arası, measurement min-180max180=>error 920-2080 arası
+	if (pid->ID == PITCH_ID) {
+		error = -(setpoint - measurement); //setpoint 1k-2k arası, measurement min-180max180=>error 920-2080 arası
+	} else if (pid->ID == ROLL_ID) {
+		error = setpoint - measurement; //setpoint 1k-2k arası, measurement min-180max180=>error 920-2080 arası
+	}
+	// Konumdan Hız Hesaplıyoruz
+	else if (pid->ID == YAW_ID) {
+
+		IMUYaw = MAP(measurement, 0.0, 360.0, -180.0, 180.0);
+
+		/*
+		 gcvt(IMUYaw, 8, ptr3);
+		 printf("IMUYaw = ");
+		 printf(ptr3);
+		 printf("\n");
+		 */
+
+		yaw_speed = (measurement - pid->prevMeasurement);
+		if (yaw_speed <= 300 || yaw_speed >= 300) {
+			if (pid->prevMeasurement < 0 && measurement > 0) {
+				pid->prevMeasurement = -pid->prevMeasurement;
+				yaw_speed =
+						-((180 - measurement) + (180 - pid->prevMeasurement));
+
+			} else if (pid->prevMeasurement > 0 && measurement < 0) {
+				measurement = -measurement;
+				yaw_speed = (180 - measurement) + (180 - pid->prevMeasurement);
+			}
+		}
+		yaw_speed = yaw_speed / pid->T;
+		debug_yaw_speed_once = yaw_speed;
+
+		/*
+		 gcvt(yaw_speed, 8, ptr3);
+		 printf("YAW Speed Map oncesi = ");
+		 printf(ptr3);
+		 printf("\n");
+		 */
+
+		yaw_speed = MAP(yaw_speed, -0.003, 0.003, -180.0, 180.0);
+
+		/*
+		 gcvt(yaw_speed, 8, ptr3);
+		 printf("YAW Speed Map sonrasi = ");
+		 printf(ptr3);
+		 printf("\n");
+		 */
+
+		//setpoint = MAP(setpoint, -0.045, 0.045, -180.0, 180.0);
+		error = setpoint - yaw_speed;
+		if (error < 1.5 && error > -1.8) { //dead zone
+			error = 0;
+			pid->integrator = 0;
+		}
+	}
+	/*
+	 gcvt(IMUYaw, 8, ptr3);
+	 printf("IMUYaw = ");
+	 printf(ptr);
+	 printf("\n");
+	 */
+	/*
+
+	 if (error < 1.5 && error > -1.5) { //dead zone
+	 error = 0;
+	 }
+	 */
 
 	/*
 	 * Proportional
 	 */
 	float proportional = pid->Kp * error;
+
 	pid->proportional = proportional; //sadece debug için
 	/*
 	 * Integral
@@ -95,6 +180,44 @@ float PIDController_Update(PIDController *pid, float setpoint,
 	pid_debug_counter++;
 	if (pid_debug_counter == 25) {
 
+		/*
+		 gcvt(measurement, 8, ptr3);
+		 printf("measurement = ");
+		 printf(ptr3);
+		 printf("\n");
+
+		 gcvt(debug_yaw_speed_once, 8, ptr3);
+		 printf("MAP ONCESI yaw_speed = ");
+		 printf(ptr3);
+		 printf("\n");
+
+		 gcvt(yaw_speed, 8, ptr3);
+		 printf("MAP SONRASI yaw_speed = ");
+		 printf(ptr3);
+		 printf("\n");
+
+		 printf("--------------------------------\n");
+
+		 pid_debug_counter = 0;
+		 }
+		 */
+		if (pid->ID == PITCH_ID) {
+			printf("\n------------PITCH DATALAR \n");
+		} else if (pid->ID == ROLL_ID) {
+			printf("\n------------ROLL DATALAR \n");
+		} else if (pid->ID == YAW_ID) {
+			printf("\n------------YAW DATALAR \n");
+			gcvt(yaw_speed, 8, ptr3);
+			printf("yaw_speed = ");
+			printf(ptr3);
+			printf("\n");
+
+			gcvt(measurement, 8, ptr3);
+			printf("measurement = ");
+			printf(ptr3);
+			printf("\n");
+
+		}
 		//debug
 		printf("\n");
 		gcvt(d_pid_out, 8, ptr3);
@@ -108,7 +231,7 @@ float PIDController_Update(PIDController *pid, float setpoint,
 		printf("\n");
 
 		gcvt(d_pid_integrator, 8, ptr3);
-		printf("d_pid_integrator = ");
+		printf("d_pid_integrator =           ");
 		printf(ptr3);
 		printf("\n");
 
@@ -120,13 +243,29 @@ float PIDController_Update(PIDController *pid, float setpoint,
 		gcvt(d_delta_t, 8, ptr3);
 		printf("d_delta_t = ");
 		printf(ptr3);
+		printf("\n\n");
+
+		gcvt(setpoint, 8, ptr3);
+		printf("setpoint = ");
+		printf(ptr3);
 		printf("\n");
 
+		gcvt(measurement, 8, ptr3);
+		printf("measurement = ");
+		printf(ptr3);
+		printf("\n");
+
+		gcvt(error, 8, ptr3);
+		printf("error = ");
+		printf(ptr3);
+		printf("\n");
+		printf("--------------------------\n");
+		HAL_GPIO_TogglePin(led_2_GPIO_Port, led_2_Pin);
 		pid_debug_counter = 0;
 
 	}
-
 	/* Return controller output */
+
 	return pid->out;
 
 }

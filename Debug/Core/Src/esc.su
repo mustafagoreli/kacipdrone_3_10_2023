@@ -1,6 +1,6 @@
-../Core/Src/esc.c:19:6:init_esc	8	static
-../Core/Src/esc.c:27:6:drive_motor_1	16	static
-../Core/Src/esc.c:32:6:drive_motor_2	16	static
-../Core/Src/esc.c:37:6:drive_motor_3	16	static
-../Core/Src/esc.c:42:6:drive_motor_4	16	static
-../Core/Src/esc.c:47:6:set_pwm	64	static
+../Core/Src/esc.c:20:6:init_esc	8	static
+../Core/Src/esc.c:44:6:drive_motor_1	16	static
+../Core/Src/esc.c:49:6:drive_motor_2	16	static
+../Core/Src/esc.c:54:6:drive_motor_3	16	static
+../Core/Src/esc.c:59:6:drive_motor_4	16	static
+../Core/Src/esc.c:64:6:set_pwm	64	static

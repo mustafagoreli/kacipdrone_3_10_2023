@@ -22,7 +22,7 @@ void bno055_assignI2C(I2C_HandleTypeDef *hi2c_device) {
 
 void bno055_delay(int time) {
 #ifdef FREERTOS_ENABLED
-  osDelay(time);
+	osDelay(time);
 #else
 	HAL_Delay(time);
 #endif
@@ -35,8 +35,23 @@ void bno055_writeData(uint8_t reg, uint8_t data) {
 			txdata, sizeof(txdata), 10);
 	if (status == HAL_OK) {
 		return;
+	} else {
+		while (status != HAL_OK) {
+			bno055_assignI2C(&hi2c3);
+			bno055_setup();
+			bno055_setOperationModeNDOF();
+			printf("imu basladi---------\r\n");
+
+		}
 	}
 
+	/*
+	 else {
+	 bno055_assignI2C(&hi2c3);
+	 bno055_setup();
+	 bno055_setOperationModeNDOF();
+	 printf("HAL_ERROR_MUSTI\n");
+	 }*/
 	if (status == HAL_ERROR) {
 		printf("HAL_I2C_Master_Transmit HAL_ERROR\r\n");
 	} else if (status == HAL_TIMEOUT) {
@@ -99,6 +114,7 @@ void bno055_readData(uint8_t reg, uint8_t *data, uint8_t len) {
 			100);
 	// HAL_I2C_Mem_Read(_bno055_i2c_port, BNO055_I2C_ADDR_LO<<1, reg,
 	// I2C_MEMADD_SIZE_8BIT, data, len, 100);
+
 }
 
 #ifdef __cplusplus

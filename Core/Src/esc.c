@@ -15,13 +15,30 @@ char ptr2[100];
 //1000 YERİNE 2 KATINI VEREREK 2 KATINA ÇIKARTIRSIN
 
 //config(pwm başlat) ve kalibrasyon(mainde whileın öncesinde çağır)
-
+int pid_debug_counter_m;
+int esc_fark;
 void init_esc() {
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+	pid_debug_counter_m = 0;
+	esc_fark = 0;
 
+	/*
+	 TIM1->CCR1 = 1100;  // Set the maximum pulse (2ms)
+	 TIM1->CCR2 = 1100;  // Set the maximum pulse (2ms)
+	 TIM1->CCR3 = 1100;  // Set the maximum pulse (2ms)
+	 TIM1->CCR4 = 1100;  // Set the maximum pulse (2ms)
+
+	 HAL_Delay(2000);  // wait for 1 beep
+	 TIM1->CCR1 = 1950;   // Set the minimum Pulse (1ms)
+	 TIM1->CCR2 = 1950;   // Set the minimum Pulse (1ms)
+	 TIM1->CCR3 = 1950;   // Set the minimum Pulse (1ms)
+	 TIM1->CCR4 = 1950;   // Set the minimum Pulse (1ms)
+
+	 HAL_Delay(2000);  // wait for 2 beeps
+	 */
 }
 
 void drive_motor_1(int pwm1Val) {
@@ -50,10 +67,10 @@ void set_pwm(float roll_pid, float pitch_pid, float yaw_pid, uint16_t throttle,
 	float pulse_length_esc1 = 0, pulse_length_esc2 = 0, pulse_length_esc3 = 0,
 			pulse_length_esc4 = 0;
 
-	pulse_length_esc1 = throttle - roll_pid - pitch_pid + yaw_pid;
-	pulse_length_esc2 = throttle + roll_pid - pitch_pid - yaw_pid;
-	pulse_length_esc3 = throttle - roll_pid + pitch_pid - yaw_pid;
-	pulse_length_esc4 = throttle + roll_pid + pitch_pid + yaw_pid;
+	pulse_length_esc1 = throttle - roll_pid - pitch_pid; //0+ yaw_pid; //sağ arka
+	pulse_length_esc2 = throttle + roll_pid - pitch_pid; //- yaw_pid; //sol arka
+	pulse_length_esc3 = throttle - roll_pid + pitch_pid; //- yaw_pid; //sağ ön
+	pulse_length_esc4 = throttle + roll_pid + pitch_pid; //+ yaw_pid; //sol ön
 
 	/*
 	 pulse_length_esc1 += pulse_length_esc1
@@ -102,34 +119,49 @@ void set_pwm(float roll_pid, float pitch_pid, float yaw_pid, uint16_t throttle,
 		pulse_length_esc2 = MIN_PWM_OUTPUT;
 		pulse_length_esc1 = MIN_PWM_OUTPUT;
 	}
+	/*
+	 if (throttle > 1600) { //güvenlik
+	 pulse_length_esc4 = 1600;
+	 pulse_length_esc3 = 1600;
+	 pulse_length_esc2 = 1600;
+	 pulse_length_esc1 = 1600;
+	 }*/
 
 	drive_motor_1(pulse_length_esc1); // motor sürme fonksiyonları		motor3ü çalıştırıyor1
 	drive_motor_2(pulse_length_esc2);	//motor2
 	drive_motor_3(pulse_length_esc3);	//motor1
 	drive_motor_4(pulse_length_esc4);	//motor4
 
-	printf("\n");
-	gcvt(pulse_length_esc1, 8, ptr2);
-	printf("esc1 = ");
-	printf(ptr2);
-	printf("\n");
+	//debug
+	pid_debug_counter_m++;
+	if (pid_debug_counter_m == 50) {
+		printf("\n");
+		gcvt(pulse_length_esc1, 8, ptr2);
+		printf("esc1 = ");
+		printf(ptr2);
+		printf("\n");
 
-	gcvt(pulse_length_esc2, 8, ptr2);
-	printf("esc2 = ");
-	printf(ptr2);
-	printf("\n");
+		gcvt(pulse_length_esc2, 8, ptr2);
+		printf("esc2 = ");
+		printf(ptr2);
+		printf("\n");
 
-	gcvt(pulse_length_esc3, 8, ptr2);
-	printf("esc3 = ");
-	printf(ptr2);
-	printf("\n");
+		gcvt(pulse_length_esc3, 8, ptr2);
+		printf("esc3 = ");
+		printf(ptr2);
+		printf("\n");
 
-	gcvt(pulse_length_esc4, 8, ptr2);
-	printf("esc4 = ");
-	printf(ptr2);
-	printf("\n");
+		gcvt(pulse_length_esc4, 8, ptr2);
+		printf("esc4 = ");
+		printf(ptr2);
+		printf("\n");
+		pid_debug_counter_m = 0;
 
+		//esc_fark = pulse_length_esc1 - pulse_length_esc2;
+		//	printf("ESC FARKI----- =%d", esc_fark);
+		//printf(esc_fark);
+		//printf("\n");
+
+	}
 }
-
-
 

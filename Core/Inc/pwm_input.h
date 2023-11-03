@@ -17,6 +17,7 @@ typedef struct {
 	uint32_t frequency;
 	float dutyCycle;
 	bool isRCConnected;
+	float rcToAngle;
 } pwm_input_t;
 
 extern pwm_input_t rc_roll;
@@ -39,5 +40,7 @@ void pwm_read_ch2();
 void pwm_read_ch3();
 void pwm_read_ch4();
 void pwm_read_ch5();
+
+float MAP(float au32_IN, float au32_INmin, float au32_INmax, float au32_OUTmin, float au32_OUTmax);
 
 #endif /* INC_PWM_INPUT_H_ */

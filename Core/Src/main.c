@@ -90,7 +90,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 
 	if (rc_throttle.dutyCycle < 1000) {
 		failsafe.flag = true;
-	}else{
+	} else {
 		failsafe.flag = false;
 	}
 }
@@ -144,13 +144,14 @@ int main(void) {
 	HAL_TIM_Base_Start(&htim5);
 	HAL_TIM_Base_Start(&htim6);
 
-	Ringbuf_init();
+	//Ringbuf_init();
 
 	HAL_Delay(500);
 
 	init_esc();
 
 	pwm_enabled();
+
 	/* USER CODE END 2 */
 
 	/* Call init function for freertos objects (in freertos.c) */
